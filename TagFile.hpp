@@ -29,6 +29,7 @@ class TagFile
 		std::vector<std::string>	getFileVec() const;
 		std::vector<std::string>	getTagVec() const;
 		std::vector<std::string>	getRealTagVec();
+		std::vector<std::string>	getFileTagsVec(std::string fileName);
 		bool			noTag();
 		std::vector<std::string>	memStrVec;
 

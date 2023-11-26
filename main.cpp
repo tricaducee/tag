@@ -2,17 +2,15 @@
 #include "IntMenu.hpp"
 #include "srch.hpp"
 #include <sstream>
+#include <random>
 #define SEARCH_LIMIT 15
 
 std::vector<std::string> splitVec(const std::string &s) {
     std::vector<std::string> result;
     std::istringstream iss(s);
     std::string mot;
-
-    while (iss >> mot) {
+    while (iss >> mot)
         result.push_back(mot);
-    }
-
     return result;
 }
 
@@ -69,6 +67,39 @@ void	consolDelTags(std::string &line, TagFile &tagsObj)
 	}
 }
 
+int	selectedTagMenu(int cursor, TagFile &tagsObj)
+{
+	switch (cursor)
+	{
+		case 1:
+			tagsObj.memStrVec.pop_back();
+			break;
+		case 2:
+			tagsObj.memStrVec.clear();
+			break;
+	}
+	return 1;	
+}
+
+int	callSelectedTagMenu(std::string &line, TagFile &tagsObj, char c)
+{
+	if (c == 's')
+	{
+		std::cout << "Saving..." << std::endl;
+		tagsObj.saveTags();
+	} else if (c == '\n')
+		tagsObj.memStrVec.push_back(line);
+	if (c == '\n' || c == 'm')
+	{
+		std::vector<std::string>	menu{"Continue", "Cancel last selection", "Cancel all selection"};
+		std::string title = "Your selection :";
+		for (auto tag : tagsObj.memStrVec)
+			title += " " + tag;
+		interactiveMenu(title, menu, selectedTagMenu, tagsObj, 'q');
+	}
+	return 0;
+}
+
 int	optionTagFile(std::string &line, TagFile &tagsObj, char c)
 {
 	if (c == 's')
@@ -90,6 +121,26 @@ int	optionTagFile(std::string &line, TagFile &tagsObj, char c)
 			tagsObj.addLinkedTagFile(line, "vu");
 		else
 			stopMessage("File [ " + line + " ] cannot be opened");
+	} else if (c == 'A' || c == 'D')
+	{
+		std::string title;
+		if (c == 'd')
+			title = "\033[1mDEL\033[0m MODE :\n";
+		else
+			title = "\033[1mADD\033[0m MODE :\n";
+		title += "Press \033[1m`enter`\033[m to select tag or \033[1m`m`\033[m to go to menu without selection\nPress \033[1m`q`\033[m to validate your selections\nOld tag(s) :";
+		for (auto tag : tagsObj.getFileTagsVec(line))
+			title += " " + tag;
+		tagsObj.memStrVec.clear();
+		interactiveMenu(title, tagsObj.getRealTagVec(), callSelectedTagMenu, tagsObj, 'q');
+		if (tagsObj.memStrVec.empty())
+			return 0;
+		if (c == 'D')
+		{
+			for (auto tag : tagsObj.memStrVec)
+				tagsObj.delTagInFile(line, tag);
+		} else
+			tagsObj.addLinkedTagFile(line, tagsObj.memStrVec);
 	}
 	return 0;
 }
@@ -175,6 +226,36 @@ void consolSearchByName(TagFile &tagsObj)
 	// }
 }
 
+void	aleatoryByTag(TagFile &tagsObj)
+{
+	std::string	tagsLine;
+	std::vector<std::string> tagsVec;
+	std::cout << "<tag> for mandatory tag\nop::<tag> for optionnal tag\nno::<tag> for prohibited tag\nEnter one or more Tags separated by a space : " << std::flush;
+	getline(std::cin, tagsLine);
+	tagsVec = splitVec(tagsLine);
+	if (!tagsVec.empty())
+	{
+		std::random_device rd;  // Obtient un nombre aléatoire pour la graine
+		std::default_random_engine engine(rd());
+		std::vector<std::string> ret = tagsObj.searchByTagAll(tagsVec);
+		if (ret.empty())
+			stopMessage("No results");
+		else
+		{
+			std::uniform_int_distribution<size_t> dist(0, ret.size() - 1);
+			std::string randomString = ret[dist(engine)];
+			if (!system(("open '" + tagsObj.getFolderName() + randomString + "'").c_str()))
+				tagsObj.addLinkedTagFile(randomString, "vu");
+			else
+				stopMessage("File [ " + randomString + " ] cannot be opened");
+		}
+	}
+	//else
+	//{
+	// 	stopMessage("No input");
+	//}
+}
+
 void	consolSearchByTag(TagFile &tagsObj)
 {
 	std::string	tagsLine;
@@ -198,21 +279,23 @@ void	consolSearchByTag(TagFile &tagsObj)
 
 int	optionTagMenu(int cursor, TagFile &tagsObj)
 {
+	std::string title;
 	switch (cursor)
 	{
-		case 0:
-			tagsObj.memStrVec.pop_back();
-			break;
 		case 1:
-			tagsObj.memStrVec.clear();
-			break;
-		case 2:
-			std::string title = "Results for [ ";
+			title = "Results for [ ";
 			for (auto tagName : tagsObj.memStrVec)
 				title += tagName + " ";
 			title += "] :";
 			interactiveMenu(title, tagsObj.searchByTagAll(tagsObj.memStrVec), optionTagFile, tagsObj, 'q');
 			tagsObj.memStrVec.clear();
+			break;
+		case 2:
+			tagsObj.memStrVec.pop_back();
+			break;
+		case 3:
+			tagsObj.memStrVec.clear();
+			break;
 	}
 	return 1;
 }
@@ -221,19 +304,22 @@ int	tagList(std::string &tag, TagFile &tagsObj, char c)
 {
 	std::string newTag = tag;
 	std::string title = "Actual tag(s) :\n";
-	std::vector<std::string> optionsMenu{"Cancel last tag", "Cancel all tags", "Search", "Continue"};
+	std::vector<std::string> optionsMenu{"Continue", "Search", "Cancel last tag", "Cancel all tags"};
 	if (c == 's')
 	{
 		std::cout << "Saving..." << std::endl;
 		tagsObj.saveTags();
 	}
-	if (c == 'a' || c == '\n' || c == 'n' || c == 'o')
+	if (c == 'a' || c == '\n' || c == 'n' || c == 'o' || c == 'm')
 	{
-		if (c == 'n')
-			newTag = "no::" + newTag;
-		else if (c == 'o')
-			newTag = "op::" + newTag;
-		tagsObj.memStrVec.push_back(newTag);
+		if (c != 'm')
+		{
+			if (c == 'n')
+				newTag = "no::" + newTag;
+			else if (c == 'o')
+				newTag = "op::" + newTag;
+			tagsObj.memStrVec.push_back(newTag);
+		}
 		for (auto tagName : tagsObj.memStrVec)
 			title += tagName + " ";
 		interactiveMenu(title, optionsMenu, optionTagMenu, tagsObj, 'q');
@@ -255,7 +341,7 @@ void	searchByTagList(TagFile &tagsObj)
 {
 	tagsObj.memStrVec.clear();
 	std::vector<std::string> tags = tagsObj.getRealTagVec();
-	interactiveMenu("\033[1m`a`\033[0m or \033[1m`enter`\033[0m for add tag\n\033[1m`n`\033[0m for exclude tag\n\033[1m`o`\033[0m for optional tag\nTags :", tags, tagList, tagsObj, 'q');
+	interactiveMenu("\033[1m`a`\033[0m or \033[1m`enter`\033[0m for add tag\n\033[1m`n`\033[0m for exclude tag\n\033[1m`o`\033[0m for optional tag\n\033[1m`m`\033[0m to go to selection menu without selection\nTags :", tags, tagList, tagsObj, 'q');
 }
 
 int	principalMenu(int cursor, TagFile &tagsObj)
@@ -274,6 +360,9 @@ int	principalMenu(int cursor, TagFile &tagsObj)
 			break;
 		case 3:
 			interactiveMenu("Files :", fileVec, optionTagFile, tagsObj, 'q');
+			break;
+		case 4:
+			aleatoryByTag(tagsObj);
 			break;
 		default:
 			printMan();
@@ -297,7 +386,7 @@ int main(int ac, char **av)
 	} else
 		folderName = "./";
 	TagFile tagsObj(folderName);
-	std::vector<std::string> menuVec{"Search by tag", "Search by tag (with list)", "Search by Name", "List all files", "Man"};
+	std::vector<std::string> menuVec{"Search by tag", "Search by tag (with list)", "Search by Name", "List all files", "Aleatory by tag", "Man"};
 	interactiveMenu("Choose mode :", menuVec, principalMenu, tagsObj, 'q');
 	std::cout << "Good By ;)" << std::endl;
 	return 0;

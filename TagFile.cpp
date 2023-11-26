@@ -83,11 +83,7 @@ std::vector<std::string>   TagFile::searchByTagAll(std::vector<std::string> tags
 			}
 		}
 		for (auto fileId : filesId)
-		{
 			files.push_back(this->_fileVec[fileId]);
-			std::cout << this->_fileVec[fileId] << std::endl;
-		}
-		read(1, NULL, 1);
 		if (noTagsId.empty())
 		{
 			if (!files.empty())
@@ -388,5 +384,13 @@ std::vector<std::string>	TagFile::getRealTagVec()
 			ret.push_back(tag);
 	}
 	std::sort(ret.begin(), ret.end());
+	return ret;
+}
+
+std::vector<std::string>	TagFile::getFileTagsVec(std::string fileName)
+{
+	std::vector<std::string>	ret;
+	for (auto id : this->_fileMap[fileName]->getIdVec())
+		ret.push_back(this->_tagVec[id]);
 	return ret;
 }
