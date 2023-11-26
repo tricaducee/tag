@@ -1,4 +1,11 @@
 #include "TagFile.hpp"
+#include <unistd.h>
+
+void stopCheckMessage(std::string message)
+{
+	std::cout << message << std::endl;
+	read(1, NULL, 1);
+}
 
 TagFile::TagFile(std::string folderName) : _fileN(0), _tagN(0)
 {
@@ -19,11 +26,23 @@ void TagFile::_deleteMapValue(std::unordered_map<std::string, Ids*> &unMap)
             delete value;
 }
 
+int	TagFile::_addTagToVector(std::string tagName, std::vector<unsigned short> &vec)
+{
+	if (!this->_tagMap[tagName])
+    {
+        std::cout << "Tag : [" << tagName << "] does not exist." << std::endl;
+        return 1;
+    }
+    vec.push_back(this->_tagMap[tagName]->getId());
+	return 0;
+}
+
 std::vector<std::string>   TagFile::searchByTagAll(std::vector<std::string> tagsName)
 {
     std::vector<std::string> ret;
     std::vector<unsigned short> tagsId;
 	std::vector<unsigned short> noTagsId;
+	std::vector<unsigned short> opTagsId;
 	std::vector<std::string> files;
 	bool check;
     for (auto name : tagsName)
@@ -31,28 +50,53 @@ std::vector<std::string>   TagFile::searchByTagAll(std::vector<std::string> tags
 		if (!name.compare(0, 4, "no::", 0, 4))
 		{
 			name = name.substr(4);
-			if (!this->_tagMap[name])
-        	{
-        	    std::cout << "Tag : [" << name << "] does not exist." << std::endl;
-        	    return ret;
-        	}
-        	else
-        	    noTagsId.push_back(this->_tagMap[name]->getId());
-		} else {
-			if (!this->_tagMap[name])
-        	{
-        	    std::cout << "Tag : [" << name << "] does not exist." << std::endl;
-        	    return ret;
-        	}
-        	else
-        	    tagsId.push_back(this->_tagMap[name]->getId());
-		}
+			this->_addTagToVector(name, noTagsId);
+		} else if (!name.compare(0, 4, "op::", 0, 4)) {
+			name = name.substr(4);
+			//stopCheckMessage("Coucou");
+			this->_addTagToVector(name, opTagsId);
+		} else
+			this->_addTagToVector(name, tagsId);
     }
-	if (noTagsId.empty() && tagsId.empty())
+	if (noTagsId.empty() && tagsId.empty() && opTagsId.empty())
 		return ret;
-	if (tagsId.empty())
+	if (tagsId.empty() && !opTagsId.empty()) // Check and get op::<tag>
+	{
+		std::vector<unsigned short> filesId = this->_tagMap[this->_tagVec[opTagsId.back()]]->getIdVec();
+		opTagsId.pop_back();
+		for (auto tagId : opTagsId) // this->_tagMap[this->_tagVec[tagId]] contient les ids des fichié lié
+		{
+			std::vector<unsigned short> tmpFilesId = this->_tagMap[this->_tagVec[tagId]]->getIdVec();
+			for (auto tmpId : tmpFilesId)
+			{
+				check = true;
+				for (auto fileId : filesId)
+				{
+					if (tmpId == fileId)
+					{
+						check = false;
+						break;
+					}
+				}
+				if (check)
+					filesId.push_back(tmpId);
+			}
+		}
+		for (auto fileId : filesId)
+		{
+			files.push_back(this->_fileVec[fileId]);
+			std::cout << this->_fileVec[fileId] << std::endl;
+		}
+		read(1, NULL, 1);
+		if (noTagsId.empty())
+		{
+			if (!files.empty())
+				std::sort(files.begin(), files.end());
+			return files;
+		}
+	} else if (tagsId.empty() && !noTagsId.empty())
 		files = this->_fileVec;
-	else
+	else // Check and get standard <tag>
 	{
 	    const std::vector<unsigned short> &filesID = this->_tagMap[this->_tagVec[tagsId.back()]]->getIdVec();
 		tagsId.pop_back();
@@ -78,9 +122,13 @@ std::vector<std::string>   TagFile::searchByTagAll(std::vector<std::string> tags
 	            files.push_back(this->_fileVec[id]);
 	    }
 		if (files.empty() || noTagsId.empty())
-			return files;	
+		{
+			if (!files.empty())
+				std::sort(files.begin(), files.end());
+			return files;
+		}	
 	}
-	for (auto fileName : files)
+	for (auto fileName : files) // Check and get no::<tag>
 	{
 		const std::vector<unsigned short> &fileTagsId = this->_fileMap[fileName]->getIdVec();
 		//check = true;
@@ -101,49 +149,10 @@ std::vector<std::string>   TagFile::searchByTagAll(std::vector<std::string> tags
 		if (check)
 			ret.push_back(fileName);
 	}
+	if (!ret.empty())
+		std::sort(ret.begin(), ret.end());
     return ret;
 }
-
-// std::vector<std::string>   TagFile::searchByTagAll(std::vector<std::string> tagsName)
-// {
-//     std::vector<std::string> ret;
-//     std::vector<unsigned short> tagsId;
-// 	std::vector<unsigned short> noTagsId;
-//     for (auto name : tagsName)
-//     {
-// 			if (!this->_tagMap[name])
-//         	{
-//         	    std::cout << "Tag : [" << name << "] does not exist." << std::endl;
-//         	    return ret;
-//         	}
-//         	else
-//         	    tagsId.push_back(this->_tagMap[name]->getId());
-// 		}
-//     }
-//     const std::vector<unsigned short> &filesID = this->_tagMap[tagsName[0]]->getIdVec();
-//     for (auto id : filesID)
-//     {
-//         const std::vector<unsigned short> &fileTagsId = this->_fileMap[this->_fileVec[id]]->getIdVec();
-//         bool check;
-//         for (auto tag : tagsId)
-//         {
-//             check = false;
-//             for (auto fileTag : fileTagsId)
-//             {
-//                 if (fileTag == tag)
-//                 {
-//                     check = true;
-//                     break;
-//                 }
-//             }
-//             if (!check)
-//                 break;
-//         }
-//         if (check)
-//             ret.push_back(this->_fileVec[id]);
-//     }
-//     return ret;
-// }
 
 void    TagFile::_linkTagFile(std::string fileName, std::string tagName)
 {
@@ -236,8 +245,21 @@ int		TagFile::initByFolder(std::string newFolderName)
 
 void	TagFile::saveTags()
 {
-	if (this->_folderName.empty() || noTag())
+	if (this->_folderName.empty())
 		return ;
+	if (this->noTag())
+	{
+		if (std::filesystem::exists(this->_folderName + this->_memFileName))
+		{
+        	try {
+        	    std::filesystem::remove(this->_folderName + this->_memFileName);
+        	} catch (const std::filesystem::filesystem_error& e) {
+        	    std::cerr << "Memory file cannot be deleted : " << e.what() << std::endl;
+				stopCheckMessage("Press enter to continue");
+        	}
+		}
+		return;
+	}
 	std::ofstream	file(this->_folderName + this->_memFileName);
 	if (file.is_open())
 	{
@@ -246,9 +268,7 @@ void	TagFile::saveTags()
 			file << "::" << key << std::endl;
 			std::vector<unsigned short> tagIds = this->_fileMap[key]->getIdVec();
 			for (auto id : tagIds)
-			{
 				file << this->_tagVec[id] << std::endl;
-			}
 		}
 		file.close();
 	} else {
@@ -277,9 +297,8 @@ void	TagFile::delAllTag(std::string tagName)
 {
 	if (!this->_tagMap[tagName])
 		return;
-	const std::vector<unsigned short>	&filesId = this->_tagMap[tagName]->getIdVec();
-	for (auto id : filesId)
-		this->delTagInFile(this->_fileVec[id], tagName);
+	for (auto id : this->_fileVec)
+		this->delTagInFile(id, tagName);
 }
 
 void	TagFile::printFiles()
@@ -358,4 +377,16 @@ std::vector<std::string>	TagFile::getFileVec() const
 std::vector<std::string>	TagFile::getTagVec() const
 {
 	return this->_tagVec;
+}
+
+std::vector<std::string>	TagFile::getRealTagVec()
+{
+	std::vector<std::string>	ret;
+	for (auto tag : this->_tagVec)
+	{
+		if (!this->_tagMap[tag]->getIdVec().empty())
+			ret.push_back(tag);
+	}
+	std::sort(ret.begin(), ret.end());
+	return ret;
 }

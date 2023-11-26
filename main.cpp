@@ -120,6 +120,11 @@ void printMan()
 	std::cout << "        Affiche tous les fichiers qui contiennent tout" << std::endl;
 	std::cout << "        les tags spécifiés (séparés par des espaces)." << std::endl;
 	std::cout << "        Pour exclure des tags utiliser no::<tag> au lieu de <tag>." << std::endl;
+	std::cout << "        Pour des tags optionnel utiliser op::<tag> au lieu de <tag>." << std::endl;
+	std::cout << "    \033[1mSearch by tag (with list):\033[0m" << std::endl;
+	std::cout << "        Séléctionné les tags à l'aide d'une liste interactive" << std::endl;
+	std::cout << "        de tout les tags existant." << std::endl;
+	std::cout << "        (`a` pour <tag> `n` pour no::<tag> et `o` pour op::<tag>)" << std::endl;
 	std::cout << "    \033[1mSearch by name:\033[0m" << std::endl;
 	std::cout << "        Affiche tout les dossier ayant un nom similaire" << std::endl;
 	std::cout << "        à l'entrée de l'utilisateur par ordre de pertinence." << std::endl;
@@ -174,7 +179,7 @@ void	consolSearchByTag(TagFile &tagsObj)
 {
 	std::string	tagsLine;
 	std::vector<std::string> tagsVec;
-	std::cout << "Enter one or more Tags separated by a space : " << std::flush;
+	std::cout << "<tag> for mandatory tag\nop::<tag> for optionnal tag\nno::<tag> for prohibited tag\nEnter one or more Tags separated by a space : " << std::flush;
 	getline(std::cin, tagsLine);
 	tagsVec = splitVec(tagsLine);
 	if (!tagsVec.empty())
@@ -217,14 +222,31 @@ int	tagList(std::string &tag, TagFile &tagsObj, char c)
 	std::string newTag = tag;
 	std::string title = "Actual tag(s) :\n";
 	std::vector<std::string> optionsMenu{"Cancel last tag", "Cancel all tags", "Search", "Continue"};
-	if (c == 'a' || c == 'n')
+	if (c == 's')
+	{
+		std::cout << "Saving..." << std::endl;
+		tagsObj.saveTags();
+	}
+	if (c == 'a' || c == '\n' || c == 'n' || c == 'o')
 	{
 		if (c == 'n')
 			newTag = "no::" + newTag;
+		else if (c == 'o')
+			newTag = "op::" + newTag;
 		tagsObj.memStrVec.push_back(newTag);
 		for (auto tagName : tagsObj.memStrVec)
 			title += tagName + " ";
 		interactiveMenu(title, optionsMenu, optionTagMenu, tagsObj, 'q');
+	}
+	if (c == 'd')
+	{
+		std::cout << "You will remove the [ " << tag << " ] tag link from all files.\nAre you sure ?\nEnter \033[1m`y`\033[0m for \033[1myes\033[0m or \033[1m`n`\033[0m for \033[1mno\033[0m : " << std::flush;
+		read(1, &c, 1);
+		if (c == 'y')
+			tagsObj.delAllTag(tag);
+		read(1, &c, 1);
+		std::cout << "Saving..." << std::endl;
+		tagsObj.saveTags();
 	}
 	return 0;
 }
@@ -232,7 +254,8 @@ int	tagList(std::string &tag, TagFile &tagsObj, char c)
 void	searchByTagList(TagFile &tagsObj)
 {
 	tagsObj.memStrVec.clear();
-	interactiveMenu("\033[1m`a`\033[0m for add tag \033[1m`n`\033[0m for exclude tag\nTags :", tagsObj.getTagVec(), tagList, tagsObj, 'q');
+	std::vector<std::string> tags = tagsObj.getRealTagVec();
+	interactiveMenu("\033[1m`a`\033[0m or \033[1m`enter`\033[0m for add tag\n\033[1m`n`\033[0m for exclude tag\n\033[1m`o`\033[0m for optional tag\nTags :", tags, tagList, tagsObj, 'q');
 }
 
 int	principalMenu(int cursor, TagFile &tagsObj)

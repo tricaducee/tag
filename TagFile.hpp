@@ -28,6 +28,7 @@ class TagFile
 		std::string	getFolderName() const;
 		std::vector<std::string>	getFileVec() const;
 		std::vector<std::string>	getTagVec() const;
+		std::vector<std::string>	getRealTagVec();
 		bool			noTag();
 		std::vector<std::string>	memStrVec;
 
@@ -45,6 +46,7 @@ class TagFile
 		void	_printTagFile(std::vector<std::string> &vec1, std::vector<std::string> &vec2, std::unordered_map<std::string, Ids*> &unMap);
 		int		_readFolderAndSetFileMap();
 		void	_setTagFromMemFile(std::string memFilePath);
+		int		_addTagToVector(std::string tagName, std::vector<unsigned short> &vec);
 };
 
 #endif
