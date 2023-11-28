@@ -13,6 +13,7 @@ class TagFile
 		~TagFile();
 		int		initByFolder(std::string newFolderName);
 		void	saveTags();
+		void	refresh();
 		std::vector<std::string>   searchByTagAll(std::vector<std::string> tagsName);
 		void	addLinkedTagFile(std::string fileName, std::string tagName);
 		void	addLinkedTagFile(std::string fileName, std::vector<std::string> tagsName);

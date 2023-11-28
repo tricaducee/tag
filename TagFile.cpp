@@ -19,11 +19,26 @@ TagFile::~TagFile()
 	this->_deleteMapValue(this->_fileMap);
 }
 
+void	TagFile::refresh()
+{
+	this->saveTags();
+	this->_deleteMapValue(this->_tagMap);
+	this->_deleteMapValue(this->_fileMap);
+	this->_fileVec.clear();
+	this->_fileVec.clear();
+	this->_fileN = 0;
+	this->_tagN = 0;
+	this->initByFolder("");
+}
+
 void TagFile::_deleteMapValue(std::unordered_map<std::string, Ids*> &unMap)
 {
-    for (const auto& [key, value] : unMap)
+    for (auto& [key, value] : unMap)
+	{
         if (value)
             delete value;
+		value = nullptr;
+	}
 }
 
 int	TagFile::_addTagToVector(std::string tagName, std::vector<unsigned short> &vec)
@@ -44,22 +59,27 @@ std::vector<std::string>   TagFile::searchByTagAll(std::vector<std::string> tags
 	std::vector<unsigned short> noTagsId;
 	std::vector<unsigned short> opTagsId;
 	std::vector<std::string> files;
-	bool check;
+	bool check = false;
     for (auto name : tagsName)
     {
 		if (!name.compare(0, 4, "no::", 0, 4))
 		{
 			name = name.substr(4);
-			this->_addTagToVector(name, noTagsId);
+			if (this->_tagMap[name])
+				noTagsId.push_back(this->_tagMap[name]->getId());
+			check = true;
 		} else if (!name.compare(0, 4, "op::", 0, 4)) {
 			name = name.substr(4);
-			//stopCheckMessage("Coucou");
 			this->_addTagToVector(name, opTagsId);
 		} else
 			this->_addTagToVector(name, tagsId);
     }
 	if (noTagsId.empty() && tagsId.empty() && opTagsId.empty())
+	{
+		if (check)
+			return this->getFileVec();
 		return ret;
+	}
 	if (tagsId.empty() && !opTagsId.empty()) // Check and get op::<tag>
 	{
 		std::vector<unsigned short> filesId = this->_tagMap[this->_tagVec[opTagsId.back()]]->getIdVec();

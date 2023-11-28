@@ -3,7 +3,7 @@
 #include "srch.hpp"
 #include <sstream>
 #include <random>
-#define SEARCH_LIMIT 15
+#define SEARCH_LIMIT 10
 
 std::vector<std::string> splitVec(const std::string &s) {
     std::vector<std::string> result;
@@ -32,15 +32,29 @@ void	consolAddTags(std::string &line, TagFile &tagsObj)
 	std::cout << "Enter new tag(s) : " << std::flush;
 	std::getline(std::cin, str);
 	if (str.empty())
-	{
-		// stopMessage("No Tag");
 		return;
-	}
 	tagsVec = splitVec(str);
 	tagsObj.addLinkedTagFile(line, tagsVec);
-	// std::cout << "File tag(s) :" << std::endl;
-	// tagsObj.printTagsOnFile(line);
-	// stopMessage("");
+}
+
+int	renameFile(std::string &line, TagFile &tagsObj)
+{
+	std::string					newName;
+	std::vector<std::string>	fileTags;
+	std::cout << "New name : " << std::flush;
+	std::getline(std::cin, newName);
+	if (newName.empty())
+		return 0;
+	if (system(("mv '" + tagsObj.getFolderName() + line + "' '" + tagsObj.getFolderName() + newName + "'").c_str()))
+		stopMessage("File [ " + line + " ] cannot be renamed");
+	else
+	{
+		fileTags = tagsObj.getFileTagsVec(line);
+		tagsObj.addLinkedTagFile(newName, fileTags);
+		tagsObj.refresh();
+		return 1;
+	}
+	return 0;
 }
 
 void	consolDelTags(std::string &line, TagFile &tagsObj)
@@ -54,16 +68,10 @@ void	consolDelTags(std::string &line, TagFile &tagsObj)
 		std::cout << "Enter tag(s) to delete : " << std::flush;
 		std::getline(std::cin, str);
 		if (str.empty())
-		{
-			// stopMessage("No Tag");
 			return;
-		}
 		tagsVec = splitVec(str);
 		for (auto tag : tagsVec)
 			tagsObj.delTagInFile(line, tag);
-		// std::cout << "File tag(s) :" << std::endl;
-		// tagsObj.printTagsOnFile(line);
-		// stopMessage("");
 	}
 }
 
@@ -106,6 +114,14 @@ int	optionTagFile(std::string &line, TagFile &tagsObj, char c)
 	{
 		std::cout << "Saving..." << std::endl;
 		tagsObj.saveTags();
+	}
+	else if (c == 'r')
+		return renameFile(line, tagsObj);
+	else if (c == 'S')
+	{
+		std::cout << "Refresh..." << std::endl;
+		tagsObj.refresh();
+		return 1;
 	}
 	else if (c == 'a')
 		consolAddTags(line, tagsObj);
@@ -181,6 +197,8 @@ void printMan()
 	std::cout << "        à l'entrée de l'utilisateur par ordre de pertinence." << std::endl;
 	std::cout << "    \033[1mList all files:\033[0m" << std::endl;
 	std::cout << "        Affiche tous les fichiers du dossier.\n" << std::endl;
+	std::cout << "    \033[1mAleatory by tag:\033[0m" << std::endl;
+	std::cout << "        Ouvre un fichier au hasard contenant les tags spécifié.\n" << std::endl;
 	std::cout << "\033[4mCommandes du menu principal:\033[0m\n" << std::endl;
 	std::cout << "    \033[1m`enter`\033[0m : Sélectionne une option." << std::endl;
 	std::cout << "        \033[1m`q`\033[0m : Quitte le programme.\n" << std::endl;
@@ -195,14 +213,18 @@ void printMan()
 	std::cout << "\033[4mCommande de la liste interactive:\033[0m\n" << std::endl;
 	std::cout << "    \033[1m`enter`\033[0m : Ouvre le fichier présélectionné." << std::endl;
 	std::cout << "        \033[1m`t`\033[0m : Affiche les tags du fichier présélectionné." << std::endl;
+	std::cout << "        \033[1m`r`\033[0m : Renomme le fichier présélectionné." << std::endl;
 	std::cout << "        \033[1m`a`\033[0m : Ajoute les tags spécifié (séparé par des espaces)" << std::endl;
 	std::cout << "              au fichier présélectionné." << std::endl;
 	std::cout << "              Press enter sans tags pour annuler." << std::endl;
+	std::cout << "        \033[1m`A`\033[0m : Ajoute les tags spécifié (via une nouvelle liste)" << std::endl;
 	std::cout << "        \033[1m`d`\033[0m : Supprime les tags spécifié (séparé par des espaces)" << std::endl;
 	std::cout << "              au fichier présélectionné." << std::endl;
 	std::cout << "              Press enter sans tags pour annuler." << std::endl;
+	std::cout << "        \033[1m`D`\033[0m : Supprime les tags spécifié (via une nouvelle liste)" << std::endl;
 	std::cout << "        \033[1m`s`\033[0m : Sauvegarder les modifications." << std::endl;
 	std::cout << "              PS : Sauvegarde automatique à la fermeture." << std::endl;
+	std::cout << "        \033[1m`S`\033[0m : Sauvegarder les modifications. Et refresh les infos." << std::endl;
 	std::cout << "        \033[1m`q`\033[0m : Retourne au menu.\n" << std::endl;
 	stopMessage("");
 }
@@ -220,10 +242,6 @@ void consolSearchByName(TagFile &tagsObj)
 		else
 			interactiveMenu("Results for [ " + searchLine + " ] :", searchRet, optionTagFile, tagsObj, 'q');
 	}
-	// else
-	// {
-	// 	stopMessage("No input");
-	// }
 }
 
 void	aleatoryByTag(TagFile &tagsObj)
@@ -250,10 +268,6 @@ void	aleatoryByTag(TagFile &tagsObj)
 				stopMessage("File [ " + randomString + " ] cannot be opened");
 		}
 	}
-	//else
-	//{
-	// 	stopMessage("No input");
-	//}
 }
 
 void	consolSearchByTag(TagFile &tagsObj)
@@ -271,10 +285,6 @@ void	consolSearchByTag(TagFile &tagsObj)
 		else
 			interactiveMenu("Results for [ " + tagsLine + " ] :", ret, optionTagFile, tagsObj, 'q');
 	}
-	//else
-	//{
-	// 	stopMessage("No input");
-	//}
 }
 
 int	optionTagMenu(int cursor, TagFile &tagsObj)
@@ -329,10 +339,14 @@ int	tagList(std::string &tag, TagFile &tagsObj, char c)
 		std::cout << "You will remove the [ " << tag << " ] tag link from all files.\nAre you sure ?\nEnter \033[1m`y`\033[0m for \033[1myes\033[0m or \033[1m`n`\033[0m for \033[1mno\033[0m : " << std::flush;
 		read(1, &c, 1);
 		if (c == 'y')
+		{
 			tagsObj.delAllTag(tag);
+			read(1, &c, 1);
+			std::cout << "Saving and refresh..." << std::endl;
+			tagsObj.refresh();
+			return 1;
+		}
 		read(1, &c, 1);
-		std::cout << "Saving..." << std::endl;
-		tagsObj.saveTags();
 	}
 	return 0;
 }
@@ -391,5 +405,3 @@ int main(int ac, char **av)
 	std::cout << "Good By ;)" << std::endl;
 	return 0;
 }
-
-
